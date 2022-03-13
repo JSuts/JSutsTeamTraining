@@ -8,16 +8,17 @@ BAKKESMOD_PLUGIN(JSutsTeamTraining, "J_Suts Team Training", plugin_version, PLUG
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
 /* bakkesmod managed cvar variables */
+std::filesystem::path folderPath;
 float snapshotInterval = 0.010f; // time (s) between updates
 int captureTime = 3; // length of capture (s)
 int maxCapture = int(captureTime / snapshotInterval); // length of captures (GameStates)
 int maxReps = 40;
 
-
-
 void JSutsTeamTraining::onLoad()
 {
 	_globalCvarManager = cvarManager;
+
+	folderPath = gameWrapper->GetDataFolder() / "JSutsTeamTraining";
 
 	cvarManager->registerNotifier("js_training_pack", 
 		std::bind(&JSutsTeamTraining::loadPack, this, std::placeholders::_1), 
@@ -206,8 +207,7 @@ void JSutsTeamTraining::cyclePlayers()
 }
 
 
-// Hook bound methods 
-
+/* Hook bound methods */
 // Bound to execute on "Function TAGame.RBActor_TA.PreAsyncTick" until all drill history is loaded
 void JSutsTeamTraining::setupDrillHook(std::string eventname) {
 	auto server = gameWrapper->GetGameEventAsServer();

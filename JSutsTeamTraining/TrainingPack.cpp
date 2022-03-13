@@ -167,8 +167,10 @@ void CarData::write(std::ostream& out) const {
 void CarData::apply(CarWrapper car) const {
 	actorData.apply(car);
 	if (!car.GetBoostComponent().IsNull()) {
+		// DEBUG: Does this give a consistent amount to everyone
+		// HACK: just give everyone besides me 2x boost
 		car.GetBoostComponent().SetCurrentBoostAmount(boostAmount);
-		car.GetBoostComponent().ClientGiveBoost(boostAmount); // TODO: Test if this gives a consistent amount to everyone
+		car.GetBoostComponent().ClientGiveBoost(boostAmount); 
 	}
 	car.SetbDoubleJumped(!hasDodge);
 	car.SetbJumped(!hasDodge);
@@ -183,8 +185,10 @@ void CarData::apply(CarWrapper car) const {
 void CarData::place(CarWrapper car) const {
 	actorData.place(car);
 	if (!car.GetBoostComponent().IsNull()) {
+		// DEBUG: Does this give a consistent amount to everyone
+		// HACK: just give everyone besides me 2x boost
 		car.GetBoostComponent().SetCurrentBoostAmount(boostAmount);
-		car.GetBoostComponent().ClientGiveBoost(boostAmount); // TODO: Test if this gives a consistent amount to everyone
+		car.GetBoostComponent().ClientGiveBoost(boostAmount); 
 	}
 	car.SetbDoubleJumped(!hasDodge);
 	car.SetbJumped(!hasDodge);
