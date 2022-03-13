@@ -24,9 +24,9 @@ void JSutsTeamTraining::onLoad()
 		"Load training pack", 
 		PERMISSION_ONLINE);
 
-	cvarManager->registerNotifier("js_training_ex_pack",
-		std::bind(&JSutsTeamTraining::executeTrainingPack, this),
-		"Load training pack",
+	cvarManager->registerNotifier("js_training_load_drill", 
+		std::bind(&JSutsTeamTraining::loadDrill, this), 
+		"Load drill saved in memory", 
 		PERMISSION_ONLINE);
 
 	cvarManager->registerNotifier("js_training_make_drill", 
@@ -34,10 +34,6 @@ void JSutsTeamTraining::onLoad()
 		"Create and save drill to memory", 
 		PERMISSION_REPLAY);
 
-	cvarManager->registerNotifier("js_training_load_drill", 
-		std::bind(&JSutsTeamTraining::loadDrill, this), 
-		"Load drill saved in memory", 
-		PERMISSION_ONLINE);
 
 	cvarManager->registerNotifier("js_training_save_pack", 
 		std::bind(&JSutsTeamTraining::savePack, this), 
@@ -63,6 +59,7 @@ void JSutsTeamTraining::onLoad()
 		if (currentPack.drills.size() > 1) {
 			std::rotate(currentPack.drills.begin(), currentPack.drills.begin() + 1, currentPack.drills.end());
 			currentDrill = currentPack.drills.at(0);
+			loadDrill();
 		}
 		else {
 			cvarManager->log("Only one drill in this pack");
@@ -79,139 +76,20 @@ void JSutsTeamTraining::onLoad()
 	}, "", 0);
 
 	// HOOK EVENTS
-	/*
-	gameWrapper->HookEvent("Function GameEvent_TA.Countdown.StartCountdownTimer", [this](std::string eventName) {
-		// check if in game with authority?
-
-		if (!training)
-			return;
-
-		cvarManager->log("Start Countdown Timer");
-
-		if (gameWrapper->IsInGame())
-			cvarManager->log("in game");
-		else {
-			cvarManager->log("not in game");
-			return;
-		}
-
-
-		ServerWrapper server = gameWrapper->GetCurrentGameState();
-		if (server.HasAuthority())
-			cvarManager->log("has authority");
-		else {
-			cvarManager->log("no authority");
-			return;
-		}
-
-		cvarManager->getCvar("sv_soccar_gravity").setValue(-0.000001f);
-		// placeActors();
-		// currentDrill.place(server);
-		// currentDrill.ball.apply(server.GetBall());
-
-
-		// Teleport cars to location
-		// Set gravity to zero
-		
-		});
-
-	gameWrapper->HookEvent("Function GameEvent_TA.Countdown.OnGameStateTimeUpdated", [this](std::string eventName) {
-		
-		if (!training)
-			return;
-
-		// Same as startcountdown?
-		// placeActors();
-		// currentDrill.place(gameWrapper->GetGameEventAsServer());
-
-		});
-	
-	gameWrapper->HookEvent("Function GameEvent_TA.Countdown.EndState", [this](std::string eventName) {
-
-		if (!training)
-			return;
-		
-		// DRILL TIME (if the safety precautions pass
-		
-		cvarManager->log("Countdown End State");
-
-		cvarManager->getCvar("sv_soccar_gravity").setValue(-650);
-
-		currentDrill.apply(gameWrapper->GetGameEventAsServer());
-
-		cyclePlayers();
-
-		// reset gravity to normal
-		// teleport cars and apply again
-
-		// AFTER A CERTAIN AMOUNT OF TIME, CHECK IF ANYONE IS NEAR THE BALL, AND IF NOT call OnDrillEnd()?
-
-		});
-	*/
-
 	gameWrapper->HookEvent("Function TAGame.Ball_TA.OnHitGoal", [this](std::string eventName) {
 		
 		if (!training)
 			return;
 
-		loadDrill();
-		/*
-		auto server = gameWrapper->GetGameEventAsServer();
-		currentDrill.place(server);
-		// placeActors();
-		gameWrapper->SetTimeout([&](GameWrapper* gw)
-			{
-				auto newServer = gw->GetGameEventAsServer();
-				// newServer.SetCountdownTime(3); // works with at least StartCountDown
-				newServer.StartCountDown(); // stops cars momentum, ball keeps going, starts countdown from 3, cars still affected by gravity, weird thing happens at base of walls, no momentum after countdown is over.
-			}, .1);
-		*/
-		// check conditions
-
-		// just call countdown??? or could also handle cycling
-
-		// onDrillEnd();?
-
-		/*
-		if (!gameWrapper->IsInFreeplay() || rewindMode || !playingFromCheckpoint || !resetOnGoal) {
-			return;
-		}
-		loadLatestCheckpoint();
-		*/
-		
+		loadDrill();	
 		});
-
-
-	//auto cvar = cvarManager->registerCvar("template_cvar", "hello-cvar", "just a example of a cvar");
-	//auto cvar2 = cvarManager->registerCvar("template_cvar2", "0", "just a example of a cvar with more settings", true, true, -10, true, 10 );
-
-	//cvar.addOnValueChanged([this](std::string cvarName, CVarWrapper newCvar) {
-	//	cvarManager->log("the cvar with name: " + cvarName + " changed");
-	//	cvarManager->log("the new value is:" + newCvar.getStringValue());
-	//});
-
-	//cvar2.addOnValueChanged(std::bind(&JSutsTeamTraining::YourPluginMethod, this, _1, _2));
-
-	// enabled decleared in the header
-	//enabled = std::make_shared<bool>(false);
-	//cvarManager->registerCvar("TEMPLATE_Enabled", "0", "Enable the TEMPLATE plugin", true, true, 0, true, 1).bindTo(enabled);
-
-	//cvarManager->registerNotifier("NOTIFIER", [this](std::vector<std::string> params){FUNCTION();}, "DESCRIPTION", PERMISSION_ALL);
-	//cvarManager->registerCvar("CVAR", "DEFAULTVALUE", "DESCRIPTION", true, true, MINVAL, true, MAXVAL);//.bindTo(CVARVARIABLE);
-	//gameWrapper->HookEvent("FUNCTIONNAME", std::bind(&TEMPLATE::FUNCTION, this));
-	//gameWrapper->HookEventWithCallerPost<ActorWrapper>("FUNCTIONNAME", std::bind(&JSutsTeamTraining::FUNCTION, this, _1, _2, _3));
-	//gameWrapper->RegisterDrawable(bind(&TEMPLATE::Render, this, std::placeholders::_1));
-
-
-	//gameWrapper->HookEvent("Function TAGame.Ball_TA.Explode", [this](std::string eventName) {
-	//	cvarManager->log("Your hook got called and the ball went POOF");
-	//});
-	// You could also use std::bind here
-	//gameWrapper->HookEvent("Function TAGame.Ball_TA.Explode", std::bind(&JSutsTeamTraining::YourPluginMethod, this);
 }
 
 void JSutsTeamTraining::onUnload()
 {
+	gameWrapper->UnhookEvent("Function TAGame.Ball_TA.OnHitGoal"); // resetDrillHook
+	gameWrapper->UnhookEvent("Function TAGame.Replay_TA.Tick"); // createDrillHook
+	gameWrapper->UnhookEvent("Function TAGame.RBActor_TA.PreAsyncTick"); // setupDrillHook
 }
 
 /**
@@ -235,45 +113,7 @@ void JSutsTeamTraining::createDrillFromCurrentReplayPosition()
 	cvarManager->log("unpause to capture upcoming moments");
 	record = true;
 	currentDrill = DrillData(); // or DrilData(replay);
-		
-	gameWrapper->HookEvent("Function TAGame.Replay_TA.Tick", [this](std::string eventname) {
-
-		// TODO: Error check? This is replay tick i suppose
-		if (!record) {
-			return;
-		}
-
-		cvarManager->log("size: " + std::to_string(currentDrill.history.size()));
-		if (currentDrill.history.size() == maxCapture) { // Done recording
-			record = false;
-			cvarManager->log("Done recording");
-			gameWrapper->UnhookEvent("Function TAGame.Replay_TA.Tick");
-			return;
-		}
-
-		auto replay = gameWrapper->GetGameEventAsReplay();
-
-		float currentTime = replay.GetSecondsElapsed();
-		float elapsed = currentTime - lastCaptureTime;
-
-		cvarManager->log("elapsed: " + std::to_string(elapsed));
-
-
-		if (elapsed < 0) { // uncertain when this is the case
-			elapsed = snapshotInterval;
-		}
-		if (elapsed < snapshotInterval) {  // last capture was too recent
-			cvarManager->log("too soon");
-			return;
-		}
-
-		lastCaptureTime = currentTime;
-
-
-		currentDrill.history.emplace_back(replay);
-		cvarManager->log("recording");
-
-		});
+	gameWrapper->HookEvent("Function TAGame.Replay_TA.Tick", std::bind(&JSutsTeamTraining::createDrillHook, this, std::placeholders::_1));
 }
 
 void JSutsTeamTraining::loadDrill()
@@ -298,85 +138,10 @@ void JSutsTeamTraining::loadDrill()
 		ball = server.SpawnBall(currentDrill.history.at(0).ball.location, 0, 0);
 	}
 
-
 	server.ResetPickups();
 	training = true;
 
-	gameWrapper->HookEvent("Function TAGame.RBActor_TA.PreAsyncTick", [this](std::string eventname) {
-		
-		auto server = gameWrapper->GetGameEventAsServer();
-
-		// TODO: Probably error check in match and shit exists
-		if (!training) {
-			position = 0;
-			gameWrapper->UnhookEvent("Function TAGame.RBActor_TA.PreAsyncTick");
-			return;
-		}
-
-
-		if (position >= currentDrill.history.size()) { // Drill setup is complete
-			// Send go message
-			auto cars = server.GetCars();
-			for (int i = 0; i < cars.Count(); i++) {
-				server.SendGoMessage(cars.Get(i).GetPlayerController());
-			}
-
-			// Reset position, end hook, and cycle players for next drill
-			position = 0;
-			gameWrapper->UnhookEvent("Function TAGame.RBActor_TA.PreAsyncTick");
-			cyclePlayers();
-			return;
-		}
-
-
-		float currentTime = server.GetSecondsElapsed();
-		float elapsed = currentTime - lastApplyTime;
-
-		elapsed = std::min(elapsed, 0.03f);
-
-		if (elapsed < 0) { // uncertain when this is the case
-			lastApplyTime = currentTime;
-			return;
-		}
-		if (elapsed < 0.01f) {  // last capture was too recent
-			cvarManager->log("too soon");
-			return;
-		}
-
-		lastApplyTime = currentTime;
-
-		currentDrill.applyIndividual(server, position); // Set current position
-
-		// Send countdown message when position is a mulltiple of (history.size / 3) (or 0)
-		if ((position % (currentDrill.history.size() / 3)) == 0) { // position is some (x/3) of history.size
-			int countdownNum = (3 - (position / (currentDrill.history.size() / 3))); // finds which third of history.size and subtracts from 3 for the countdown number
-			auto cars = server.GetCars();
-			for (int i = 0; i < cars.Count(); i++) {
-				server.SendCountdownMessage(countdownNum, cars.Get(i).GetPlayerController());
-			}
-		}
-
-		position++;
-		});
-}
-
-void JSutsTeamTraining::executeTrainingPack()
-{
-	if (currentPack.drills.size() == 0)
-	{
-		cvarManager->log("No Drills");
-		return;
-	}
-
-	if (currentPack.packName.empty())
-		cvarManager->log("Executing current pack");
-	else
-		cvarManager->log("Executing " + currentPack.packName);
-
-	// set current drill to first drill? or random drill based on preferences
-	currentDrill = currentPack.drills[0];
-
-	loadDrill();
+	gameWrapper->HookEvent("Function TAGame.RBActor_TA.PreAsyncTick", std::bind(&JSutsTeamTraining::setupDrillHook, this, std::placeholders::_1));
 }
 
 void JSutsTeamTraining::loadPack(std::vector<std::string> args)
@@ -411,10 +176,7 @@ void JSutsTeamTraining::loadPack(std::vector<std::string> args)
 		cvarManager->log("num of drills: " + std::to_string(currentPack.drills.size()));
 		currentDrill = currentPack.drills.at(0);
 	}
-	// cvarManager->log("loaded " + currentPack.packDescription);
-	// cvarManager->log("loaded pack: " + currentPack.filepath);
-
-	// check if in online game/able to execute drill, then execute training or just load
+	
 	cvarManager->log("Trying to close");
 	in.close();
 	cvarManager->log(in.is_open() ? "open" : "closed");
@@ -441,6 +203,102 @@ void JSutsTeamTraining::cyclePlayers()
 	for (int i = 0; i < currentDrill.history.size(); i++) {
 		std::rotate(currentDrill.history.at(i).cars.begin(), currentDrill.history.at(i).cars.begin() + 1, currentDrill.history.at(i).cars.end());
 	}
+}
+
+
+// Hook bound methods 
+
+// Bound to execute on "Function TAGame.RBActor_TA.PreAsyncTick" until all drill history is loaded
+void JSutsTeamTraining::setupDrillHook(std::string eventname) {
+	auto server = gameWrapper->GetGameEventAsServer();
+
+	// TODO: Probably error check in match and shit exists
+	// training may be turned off by another function
+	if (!training) {
+		position = 0;
+		gameWrapper->UnhookEvent("Function TAGame.RBActor_TA.PreAsyncTick");
+		return;
+	}
+
+	// Check if drill setup is complete
+	if (position >= currentDrill.history.size()) { 
+		// Send go message
+		auto cars = server.GetCars();
+		for (int i = 0; i < cars.Count(); i++) {
+			server.SendGoMessage(cars.Get(i).GetPlayerController());
+		}
+
+		// Reset position, end hook, and cycle players for next drill
+		position = 0;
+		gameWrapper->UnhookEvent("Function TAGame.RBActor_TA.PreAsyncTick");
+		cyclePlayers();
+		return;
+	}
+
+
+	float currentTime = server.GetSecondsElapsed();
+	float elapsed = currentTime - lastApplyTime;
+	elapsed = std::min(elapsed, 0.03f);
+
+	if (elapsed < 0) { // uncertain when this is the case
+		lastApplyTime = currentTime;
+		return;
+	}
+	if (elapsed < 0.01f) {  // last capture was too recent
+		cvarManager->log("too soon");
+		return;
+	}
+		
+	// Send countdown message when position is a mulltiple of (history.size / 3) (or 0)
+	if ((position % (currentDrill.history.size() / 3)) == 0) { // position is some (x/3) of history.size
+		int countdownNum = (3 - (position / (currentDrill.history.size() / 3))); // finds which third of history.size and subtracts from 3 for the countdown number
+		auto cars = server.GetCars();
+		for (int i = 0; i < cars.Count(); i++) {
+			server.SendCountdownMessage(countdownNum, cars.Get(i).GetPlayerController());
+		}
+	}
+
+	lastApplyTime = currentTime;
+	currentDrill.applyIndividual(server, position); // Set current position
+	position++;
+}
+
+// Bound to execute on "Function TAGame.Replay_TA.Tick" until all drill history is recorded
+void JSutsTeamTraining::createDrillHook(std::string eventname) {
+	// TODO: Error check? This is replay tick i suppose
+	if (!record) {
+		return;
+	}
+
+	cvarManager->log("size: " + std::to_string(currentDrill.history.size()));
+	if (currentDrill.history.size() == maxCapture) { // Done recording
+		record = false;
+		cvarManager->log("Done recording");
+		gameWrapper->UnhookEvent("Function TAGame.Replay_TA.Tick");
+		return;
+	}
+
+	auto replay = gameWrapper->GetGameEventAsReplay();
+
+	float currentTime = replay.GetSecondsElapsed();
+	float elapsed = currentTime - lastCaptureTime;
+
+	cvarManager->log("elapsed: " + std::to_string(elapsed));
+
+
+	if (elapsed < 0) { // uncertain when this is the case
+		elapsed = snapshotInterval;
+	}
+	if (elapsed < snapshotInterval) {  // last capture was too recent
+		cvarManager->log("too soon");
+		return;
+	}
+
+	lastCaptureTime = currentTime;
+
+
+	currentDrill.history.emplace_back(replay);
+	cvarManager->log("recording");
 }
 
 

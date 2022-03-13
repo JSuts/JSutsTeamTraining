@@ -39,7 +39,6 @@ class JSutsTeamTraining: public BakkesMod::Plugin::BakkesModPlugin, public Bakke
 	void savePack();
 	
 	void loadDrill();
-	void executeTrainingPack();
 
 
 
@@ -47,18 +46,16 @@ private:
 	/* Data currently loaded in memory */
 	TrainingPack currentPack;
 	DrillData currentDrill;
-	bool record = false;
 	float lastCaptureTime = 0;
 	float lastApplyTime = 0;
-
+	bool training = false;
+	bool record = false;
 	int position = 0;
 	int rep = 1;
-
-	bool training = false;
 	
 	void cyclePlayers();
-	void startTimer();
-
+	void setupDrillHook(std::string eventname);
+	void createDrillHook(std::string eventname);
 
 	// Inherited via PluginSettingsWindow
 	void RenderSettings() override;
