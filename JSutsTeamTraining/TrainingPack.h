@@ -11,8 +11,8 @@ public:
 	ActorData(std::istringstream& stream);
 
 	void write(std::ostream& out) const;
-	void apply(ActorWrapper actor) const;
-	void place(ActorWrapper actor) const;
+	void apply(ActorWrapper actor, bool mirror = false) const;
+	void place(ActorWrapper actor, bool mirror = false) const;
 };
 
 class CarData {
@@ -32,8 +32,8 @@ public:
 	CarData(std::istringstream& stream);
 
 	void write(std::ostream& out) const;
-	void apply(CarWrapper c) const;
-	void place(CarWrapper c) const;
+	void apply(CarWrapper c, bool mirror = false) const;
+	void place(CarWrapper c, bool mirror = false) const;
 	
 };
 
@@ -48,8 +48,8 @@ public:
 	GameState(std::string enc);
 
 	void write(std::ostream& out) const;
-	void apply(ServerWrapper sw) const;
-	void place(ServerWrapper sw) const;
+	void apply(ServerWrapper sw, bool mirror = false) const;
+	void place(ServerWrapper sw, bool mirror = false) const;
 
 	const std::string toString() const;
 };
@@ -66,10 +66,10 @@ public:
 	DrillData(std::string enc);
 
 	void write(std::ostream& out) const;
-	void apply(ServerWrapper sw) const;
-	void applyIndividual(ServerWrapper sw, int index) const;
-	void place(ServerWrapper sw) const;
-	void placeIndividual(ServerWrapper sw, int index) const;
+	void apply(ServerWrapper sw, bool mirror = false) const;
+	void applyIndividual(ServerWrapper sw, int index, bool mirror = false) const;
+	void place(ServerWrapper sw, bool mirror = false) const;
+	void placeIndividual(ServerWrapper sw, int index, bool mirror = false) const;
 
 	const std::string toString() const;
 };
@@ -78,8 +78,6 @@ class TrainingPack {
 public:
 	std::vector<DrillData> drills;
 	std::string packName;
-	// std::string packDescription;
-	// std::string filepath;
 
 	TrainingPack();
 	TrainingPack(std::ifstream& in);
@@ -88,46 +86,3 @@ public:
 
 	const std::string toString() const;
 };
-/*
-class TrainingPack
-{
-public:
-	struct CarData {
-		Vector CarLocation, CarVelocity;
-		Rotator CarRotation;
-		float Boost;
-		std::string OriginalPlayerName;
-		//flip indicator?
-
-		void setCar(CarWrapper gameCar);
-		void placeCar(CarWrapper gameCar); // Freeze Car at location
-	};
-	struct DrillData {
-		Vector BallLocation, BallVelocity, BallAngularVelocity;
-		Rotator BallRotation;
-		std::string ShotName;
-		std::vector<CarData> Cars;
-
-		void setBall(BallWrapper gameBall); // Set location and velocities
-		void placeBall(BallWrapper gameBall); // Freeze ball at location
-	};	
-
-	TrainingPack();
-	TrainingPack(std::string filepath);
-
-	// Either add another method to allow passing all three options, or combine into new method with three
-	// void setName(std::string name);
-	// void setDescription(std::string description);
-	// void setFilepath(std::string filepath);
-	
-	void save();
-	void addDrill(DrillData drill);
-
-//private:
-	std::vector<DrillData> Drills;
-	std::string PackName;
-	std::string PackDescription;
-	std::string filepath;
-};
-*/
-

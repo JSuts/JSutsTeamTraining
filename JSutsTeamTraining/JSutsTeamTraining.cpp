@@ -11,8 +11,9 @@ std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 std::filesystem::path folderPath;
 float snapshotInterval = 0.010f; // time (s) between updates
 int captureTime = 3; // length of capture (s)
-int maxCapture = int(captureTime / snapshotInterval); // length of captures (GameStates)
+int maxCapture = 300; // length of captures (GameStates)
 int maxReps = 40;
+bool mirrorHalfway = true;
 
 void JSutsTeamTraining::onLoad()
 {
@@ -20,68 +21,60 @@ void JSutsTeamTraining::onLoad()
 
 	folderPath = gameWrapper->GetDataFolder() / "JSutsTeamTraining";
 
-	cvarManager->registerNotifier("js_training_pack", 
-		std::bind(&JSutsTeamTraining::loadPack, this, std::placeholders::_1), 
-		"Load training pack", 
-		PERMISSION_ONLINE);
+	cvarManager->registerCvar("js_training_var_max_reps", std::to_string(maxReps), "How many times to repeat a drill", true, true, 1, false)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			maxReps = cvar.getIntValue();
+		});
+	cvarManager->registerCvar("js_training_var_snapshot_interval", std::to_string(snapshotInterval), "Minimum amount of time between recording frames", true)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			snapshotInterval = cvar.getFloatValue();
+		});
+	cvarManager->registerCvar("js_training_var_capture_time", std::to_string(captureTime), "Approximate amount of \"time\" to record", true)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			captureTime = cvar.getIntValue();
+		});
+	cvarManager->registerCvar("js_training_var_max_capture", std::to_string(maxCapture), "Number of \"frames\" to record", true, true, 1)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			maxCapture = cvar.getIntValue();
+		});
+	cvarManager->registerCvar("js_training_var_mirror_halfway", std::to_string(mirrorHalfway), "Mirrors the drill halfway through when enabled", true, true, false, true, true)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			mirrorHalfway = cvar.getBoolValue();
+		});
 
-	cvarManager->registerNotifier("js_training_load_drill", 
-		std::bind(&JSutsTeamTraining::loadDrill, this), 
-		"Load drill saved in memory", 
-		PERMISSION_ONLINE);
+	// TODO: pass mirror through apply functions
+		
 
-	cvarManager->registerNotifier("js_training_make_drill", 
-		std::bind(&JSutsTeamTraining::createDrillFromCurrentReplayPosition, this), 
-		"Create and save drill to memory", 
-		PERMISSION_REPLAY);
-
-
-	cvarManager->registerNotifier("js_training_save_pack", 
-		std::bind(&JSutsTeamTraining::savePack, this), 
-		"Save pack in memory to filesystem", 
-		PERMISSION_ONLINE);
+	cvarManager->registerNotifier("js_training_pack", std::bind(&JSutsTeamTraining::loadPack, this, std::placeholders::_1), "Load training pack", PERMISSION_ONLINE);
+	cvarManager->registerNotifier("js_training_load_drill", std::bind(&JSutsTeamTraining::loadDrill, this), "Load drill saved in memory", PERMISSION_ONLINE);
+	cvarManager->registerNotifier("js_training_make_drill", std::bind(&JSutsTeamTraining::createDrillFromCurrentReplayPosition, this), "Create and save drill to memory", PERMISSION_REPLAY);
+	cvarManager->registerNotifier("js_training_save_pack", std::bind(&JSutsTeamTraining::savePack, this), "Save pack in memory to filesystem", PERMISSION_ONLINE);
 
 	cvarManager->registerNotifier("js_training_stop_drill", [&](std::vector<std::string> args) {
 		training = false;
-
 	}, "", 0);		 
 
 	cvarManager->registerNotifier("js_training_make_pack", [&](std::vector<std::string> args) {
 		currentPack = TrainingPack();
-
 		// TODO: REMOVE BELOW probably
-
 		currentPack.packName = "firstPack";
-		// currentPack.packDescription = "Testing the first training pack";
-
 	}, "", 0);		
 	
 	cvarManager->registerNotifier("js_training_next_drill", [&](std::vector<std::string> args) {
-		if (currentPack.drills.size() > 1) {
-			std::rotate(currentPack.drills.begin(), currentPack.drills.begin() + 1, currentPack.drills.end());
-			currentDrill = currentPack.drills.at(0);
-			loadDrill();
-		}
-		else {
-			cvarManager->log("Only one drill in this pack");
-		}
-
+		cycleDrills();
+		loadDrill();
 	}, "", 0);	
 
 	cvarManager->registerNotifier("js_training_add_drill_to_pack", [&](std::vector<std::string> args) {
-		
 		// TODO: ERROR CHECK
-
 		currentPack.drills.push_back(currentDrill);
-
 	}, "", 0);
+
 
 	// HOOK EVENTS
 	gameWrapper->HookEvent("Function TAGame.Ball_TA.OnHitGoal", [this](std::string eventName) {
-		
 		if (!training)
 			return;
-
 		loadDrill();	
 		});
 }
@@ -142,6 +135,7 @@ void JSutsTeamTraining::loadDrill()
 	server.ResetPickups();
 	training = true;
 
+	cvarManager->log("maxReps = " + std::to_string(maxReps));
 	gameWrapper->HookEvent("Function TAGame.RBActor_TA.PreAsyncTick", std::bind(&JSutsTeamTraining::setupDrillHook, this, std::placeholders::_1));
 }
 
@@ -206,6 +200,16 @@ void JSutsTeamTraining::cyclePlayers()
 	}
 }
 
+void JSutsTeamTraining::cycleDrills() {
+	if (currentPack.drills.size() > 1) {
+		std::rotate(currentPack.drills.begin(), currentPack.drills.begin() + 1, currentPack.drills.end());
+		currentDrill = currentPack.drills.at(0);
+		rep = 1; // Restart rep counter	
+	}
+	else {
+		cvarManager->log("Only one drill in this pack");
+	}
+}
 
 /* Hook bound methods */
 // Bound to execute on "Function TAGame.RBActor_TA.PreAsyncTick" until all drill history is loaded
@@ -232,6 +236,18 @@ void JSutsTeamTraining::setupDrillHook(std::string eventname) {
 		position = 0;
 		gameWrapper->UnhookEvent("Function TAGame.RBActor_TA.PreAsyncTick");
 		cyclePlayers();
+
+		// Check if desired number of reps have been completed
+		rep++;
+		if (rep > maxReps) {
+			cycleDrills();
+		}
+
+		if (mirrorHalfway && rep > maxReps / 2)
+			mirror = true;
+		else
+			mirror = false;
+
 		return;
 	}
 
@@ -244,11 +260,12 @@ void JSutsTeamTraining::setupDrillHook(std::string eventname) {
 		lastApplyTime = currentTime;
 		return;
 	}
-	if (elapsed < 0.01f) {  // last capture was too recent
-		cvarManager->log("too soon");
+	if (elapsed < (snapshotInterval - (snapshotInterval/3))) {  // last capture was too recent
+		cvarManager->log("too soon " + std::to_string(elapsed));
 		return;
 	}
 		
+	// Alert messages
 	// Send countdown message when position is a mulltiple of (history.size / 3) (or 0)
 	if ((position % (currentDrill.history.size() / 3)) == 0) { // position is some (x/3) of history.size
 		int countdownNum = (3 - (position / (currentDrill.history.size() / 3))); // finds which third of history.size and subtracts from 3 for the countdown number
@@ -258,9 +275,10 @@ void JSutsTeamTraining::setupDrillHook(std::string eventname) {
 		}
 	}
 
+	// Set drill 
 	lastApplyTime = currentTime;
-	currentDrill.applyIndividual(server, position); // Set current position
-	position++;
+	currentDrill.applyIndividual(server, position, mirror); // Set current position
+	position++;	
 }
 
 // Bound to execute on "Function TAGame.Replay_TA.Tick" until all drill history is recorded
@@ -271,7 +289,7 @@ void JSutsTeamTraining::createDrillHook(std::string eventname) {
 	}
 
 	cvarManager->log("size: " + std::to_string(currentDrill.history.size()));
-	if (currentDrill.history.size() == maxCapture) { // Done recording
+	if (currentDrill.history.size() >= maxCapture) { // Done recording
 		record = false;
 		cvarManager->log("Done recording");
 		gameWrapper->UnhookEvent("Function TAGame.Replay_TA.Tick");
@@ -285,7 +303,6 @@ void JSutsTeamTraining::createDrillHook(std::string eventname) {
 
 	cvarManager->log("elapsed: " + std::to_string(elapsed));
 
-
 	if (elapsed < 0) { // uncertain when this is the case
 		elapsed = snapshotInterval;
 	}
@@ -295,7 +312,6 @@ void JSutsTeamTraining::createDrillHook(std::string eventname) {
 	}
 
 	lastCaptureTime = currentTime;
-
 
 	currentDrill.history.emplace_back(replay);
 	cvarManager->log("recording");

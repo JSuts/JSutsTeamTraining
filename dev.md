@@ -10,8 +10,8 @@
  - [ ] Re-order Drill positions for new teammate matchups (because server car vector is grabbed new every time)
 
 ## Todo:
- - [ ] keep track of and increment rep number
- - [ ] Mirror halfway through
+ - [x] keep track of and increment rep number
+ - [x] Mirror halfway through
  - [ ] Handle extra player spawns
  - [ ] Handle too little player spawns
  - [ ] function button bindings

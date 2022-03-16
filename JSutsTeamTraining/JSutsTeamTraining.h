@@ -50,10 +50,12 @@ private:
 	float lastApplyTime = 0;
 	bool training = false;
 	bool record = false;
+	bool mirror = false;
 	int position = 0;
 	int rep = 1;
 	
 	void cyclePlayers();
+	void cycleDrills();
 	void setupDrillHook(std::string eventname);
 	void createDrillHook(std::string eventname);
 

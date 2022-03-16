@@ -69,6 +69,37 @@ static inline void writeRot(std::ostream& out, const Rotator& r) {
 }
 
 
+/* Mirroring Helpers (from https://github.com/bakkesmodorg/BakkesMod2-Plugins/blob/45d86ebb621addf6b9f0e10b2a8df0a0dcfb8f84/TrainingPlugin/TrainingPlugin.cpp) */
+Vector mirror_it(Vector v, bool mir) {
+	if (mir) {
+		v.X = -v.X;
+	}
+	return v;
+}
+
+Rotator mirror_it(Rotator r, bool mir) {
+	if (mir) {
+		if (r.Yaw > 0) {
+			if (r.Yaw > 16383) {
+				r.Yaw = 16383 - (r.Yaw - 16383);
+			}
+			else {
+				r.Yaw = 16383 + (16383 - r.Yaw);
+
+			}
+		}
+		else {
+			if (r.Yaw > -16383) {
+				r.Yaw = -16383 - (16383 - abs(r.Yaw));
+			}
+			else {
+				r.Yaw = -16383 + (abs(r.Yaw) - 16383);
+			}
+		}
+	}
+	return r;
+}
+
 
 /* ActorData Methods */
 
@@ -108,17 +139,17 @@ void ActorData::write(std::ostream& out) const {
 	writeVec(out, angVelocity);
 }
 
-void ActorData::apply(ActorWrapper actor) const {
-	actor.SetLocation(location);
-	actor.SetVelocity(velocity);
-	actor.SetRotation(rotation);
-	actor.SetAngularVelocity(angVelocity, false);
+void ActorData::apply(ActorWrapper actor, bool mirror) const {
+		actor.SetLocation(mirror_it(location, mirror));
+		actor.SetVelocity(mirror_it(velocity, mirror));
+		actor.SetRotation(mirror_it(rotation, mirror));
+		actor.SetAngularVelocity(mirror_it(angVelocity, mirror), false);
 }
 
-void ActorData::place(ActorWrapper actor) const {
-	actor.SetLocation(location);
+void ActorData::place(ActorWrapper actor, bool mirror) const {
+	actor.SetLocation(mirror_it(location, mirror));
 	actor.SetVelocity(0);
-	actor.SetRotation(rotation);
+	actor.SetRotation(mirror_it(rotation, mirror));
 	actor.SetAngularVelocity(0, false);
 }
 
@@ -126,7 +157,15 @@ void ActorData::place(ActorWrapper actor) const {
 
 /* CarData Methods */
 CarData::CarData() {
+	// "Blank" cars get randomly placed on the ceiling to keep them out of the play (and randomized to keep it a little fun)
 	actorData = ActorData();
+	float X = std::rand() % (4096*2) - 4096; // Side walls are at X = +/-4096
+	float Y = std::rand() % (5120 * 2) - 5120; // Back walls are at Y = +/-5120
+	float Z = 2100; // Ceiling is at Z = 2044
+
+	actorData.location = Vector(X, Y, Z);
+	actorData.rotation.Yaw = std::rand() % 6 - 3;
+	boostAmount = 99;
 }
 
 CarData::CarData(CarWrapper car) {
@@ -164,8 +203,8 @@ void CarData::write(std::ostream& out) const {
 	writePOD(out, identifier);
 }
 
-void CarData::apply(CarWrapper car) const {
-	actorData.apply(car);
+void CarData::apply(CarWrapper car, bool mirror) const {
+	actorData.apply(car, mirror);
 	if (!car.GetBoostComponent().IsNull()) {
 		// DEBUG: Does this give a consistent amount to everyone
 		// HACK: just give everyone besides me 2x boost
@@ -174,16 +213,10 @@ void CarData::apply(CarWrapper car) const {
 	}
 	car.SetbDoubleJumped(!hasDodge);
 	car.SetbJumped(!hasDodge);
-
-	/*
-	if (bot && !car.GetAIController().IsNull())
-		car.SetInput(input);
-	*/
-
 }
 
-void CarData::place(CarWrapper car) const {
-	actorData.place(car);
+void CarData::place(CarWrapper car, bool mirror) const {
+	actorData.place(car, mirror);
 	if (!car.GetBoostComponent().IsNull()) {
 		// DEBUG: Does this give a consistent amount to everyone
 		// HACK: just give everyone besides me 2x boost
@@ -256,33 +289,33 @@ void GameState::write(std::ostream& out) const {
 	}
 }
 
-void GameState::apply(ServerWrapper sw) const {
+void GameState::apply(ServerWrapper sw, bool mirror) const {
 	if (sw.GetBall().IsNull() || sw.GetCars().IsNull()) {
 		return;
 	}
-	ball.apply(sw.GetBall());
+	ball.apply(sw.GetBall(), mirror);
 	ArrayWrapper<CarWrapper> serverCars = sw.GetCars();
 	for (int i = 0; i < serverCars.Count(); i++)
 	{
 		if (i < cars.size())
-			cars.at(i).apply(serverCars.Get(i));
+			cars.at(i).apply(serverCars.Get(i), mirror);
 		else
-			CarData().apply(serverCars.Get(i)); // This is for extra cars in the lobby that aren't apart of the drill
+			CarData().apply(serverCars.Get(i), mirror); // This is for extra cars in the lobby that aren't apart of the drill
 	}
 }
 
-void GameState::place(ServerWrapper sw) const {
+void GameState::place(ServerWrapper sw, bool mirror) const {
 	if (sw.GetBall().IsNull() || sw.GetCars().IsNull()) {
 		return;
 	}
-	ball.place(sw.GetBall());
+	ball.place(sw.GetBall(), mirror);
 	ArrayWrapper<CarWrapper> serverCars = sw.GetCars();
 	for (int i = 0; i < serverCars.Count(); i++)
 	{
 		if (i < cars.size())
-			cars.at(i).place(serverCars.Get(i));
+			cars.at(i).place(serverCars.Get(i), mirror);
 		else
-			CarData().place(serverCars.Get(i)); // This is for extra cars in the lobby that aren't apart of the drill
+			CarData().place(serverCars.Get(i), mirror); // This is for extra cars in the lobby that aren't apart of the drill
 	}
 }
 
@@ -337,47 +370,47 @@ void DrillData::write(std::ostream& out) const {
 	}
 }
 
-void DrillData::apply(ServerWrapper sw) const {
+void DrillData::apply(ServerWrapper sw, bool mirror) const {
 	if (sw.GetBall().IsNull() || sw.GetCars().IsNull()) {
 		return;
 	}
 	for (auto& gs : history) {
-		gs.apply(sw);
+		gs.apply(sw, mirror);
 	}
 }
 
-void DrillData::applyIndividual(ServerWrapper sw, int index) const {
+void DrillData::applyIndividual(ServerWrapper sw, int index, bool mirror) const {
 	if (sw.GetBall().IsNull() || sw.GetCars().IsNull()) {
 		return;
 	}
 	if (index <= 0) // first index or less
-		history.at(0).apply(sw); // apply first index
+		history.at(0).apply(sw, mirror); // apply first index
 	else if (index >= history.size() - 1) // last index or more
-		history.at(history.size() - 1).apply(sw); // apply last index
+		history.at(history.size() - 1).apply(sw, mirror); // apply last index
 	else
-		history.at(index).apply(sw);
+		history.at(index).apply(sw, mirror);
 }
 
 
-void DrillData::place(ServerWrapper sw) const {
+void DrillData::place(ServerWrapper sw, bool mirror) const {
 	if (sw.GetBall().IsNull() || sw.GetCars().IsNull()) {
 		return;
 	}
 	for (auto& gs : history) {
-		gs.place(sw);
+		gs.place(sw, mirror);
 	}
 }
 
-void DrillData::placeIndividual(ServerWrapper sw, int index) const {
+void DrillData::placeIndividual(ServerWrapper sw, int index, bool mirror) const {
 	if (sw.GetBall().IsNull() || sw.GetCars().IsNull()) {
 		return;
 	}
 	if (index <= 0) // first index or less
-		history.at(0).place(sw); // apply first index
+		history.at(0).place(sw, mirror); // apply first index
 	else if (index >= history.size() - 1) // last index or more
-		history.at(history.size() - 1).place(sw); // apply last index
+		history.at(history.size() - 1).place(sw, mirror); // apply last index
 	else
-		history.at(index).place(sw);
+		history.at(index).place(sw, mirror);
 }
 
 const std::string DrillData::toString() const {
@@ -397,9 +430,6 @@ TrainingPack::TrainingPack() {
 
 TrainingPack::TrainingPack(std::ifstream& in)
 {
-	// readPOD(in, packName);
-	
-	// readPOD(in, packDescription);
 	int32_t version;
 
 	readPOD(in, version);
@@ -420,9 +450,6 @@ TrainingPack::TrainingPack(std::ifstream& in)
 
 void TrainingPack::write(std::ostream& out) const
 {
-	
-	// writePOD(out, packName);
-	// writePOD(out, packDescription);
 	writePOD(out, FILE_VERSION);
 
 	auto size = int32_t(drills.size());
