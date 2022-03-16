@@ -331,12 +331,12 @@ const std::string GameState::toString() const {
 DrillData::DrillData() {
 	// history.emplace_back(GameState());
 	history;
-	fps = 100;
+	fps = 99;
 }
 
 DrillData::DrillData(ServerWrapper sw) {
 	history.emplace_back(GameState(sw));
-	fps = 100;
+	fps = 99;
 }
 
 DrillData::DrillData(std::istream& in) {

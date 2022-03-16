@@ -18,8 +18,9 @@
  - [ ] next drill, end this drill execution, reset drill with previous layout (cycle players backwards) 
  - [ ] Change pack name
 	 - [ ] Error check file name (no spaces? not too long?) (or just remove spaces, lowerCamelCase, and truncate)
- - [ ] swap in folderPath to saving/loading files
+ - [x] swap in folderPath to saving/loading files
  - [x] Factor in FPS to recording and playback
+ - [x] Display saved training packs
 
  ## Maybe:
  - [ ] Save all recording settings for each drill to load back up when reading drill

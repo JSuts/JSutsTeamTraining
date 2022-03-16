@@ -8,7 +8,7 @@ BAKKESMOD_PLUGIN(JSutsTeamTraining, "J_Suts Team Training", plugin_version, PLUG
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
 
 /* bakkesmod managed cvar variables */
-std::filesystem::path folderPath;
+std::filesystem::path folderPath; // location of plugin files
 float snapshotInterval = 0.010f; // time (s) between updates
 int captureTime = 3; // length of capture (s)
 int maxCapture = 300; // length of captures (GameStates)
@@ -25,7 +25,22 @@ void JSutsTeamTraining::onLoad()
 	int fps = gameWrapper->GetSettings().GetVideoSettings().MaxFPS;
 	maxCapture = captureTime * fps;
 	snapshotInterval = (float) captureTime / (float) maxCapture;
+
 	folderPath = gameWrapper->GetDataFolder() / "JSutsTeamTraining";
+
+	if (!std::filesystem::exists(folderPath)) {
+		cvarManager->log(folderPath.string() + " does not exist.");
+		if (std::filesystem::create_directory(folderPath)) {
+			cvarManager->log("Created " + folderPath.string());
+		}
+		else {
+			cvarManager->log("Failed to create " + folderPath.string());
+		}
+	}
+	else {
+		cvarManager->log(folderPath.string() + " exists.");
+	}
+	
 
 	cvarManager->registerCvar("js_training_var_max_reps", std::to_string(maxReps), "How many times to repeat a drill", true, true, 1, false)
 		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
@@ -187,11 +202,14 @@ void JSutsTeamTraining::loadPack(std::vector<std::string> args)
 	if (args.size() < 2)
 	{
 		// TODO: Log training packs
-		cvarManager->log("Saved Training Packs");
+		cvarManager->log("Saved Training Packs: ");
+		for (const auto& entry : std::filesystem::directory_iterator(folderPath))
+			cvarManager->log(entry.path().filename().string());
+		cvarManager->log("Alternatively, you may provide an absolute path to the file you're looking for.");
 		return;
 	}
 
-	std::filesystem::path path = gameWrapper->GetDataFolder() / args[1];
+	std::filesystem::path path = folderPath / args[1];
 
 	cvarManager->log(path.string());
 
@@ -202,8 +220,23 @@ void JSutsTeamTraining::loadPack(std::vector<std::string> args)
 		cvarManager->log("Could not open file.");
 		cvarManager->log("Trying to close file connection.");
 		in.close();
-		cvarManager->log(in.is_open() ? "open" : "closed");		
-		return;
+		cvarManager->log(in.is_open() ? "open" : "closed");
+		
+		// Check if input is an entire path itself
+		path = std::filesystem::path(args[1]);
+		cvarManager->log(path.string());
+		std::ifstream in(path, std::ios::binary);
+		
+		// This doesn't quite work how I expect. It works for just copying and pasting an entire path, 
+		// but doesn't work with relative pathing, even though it seems like the standard bakkesmod path is relative
+
+		if (!in.good()) {
+			cvarManager->log("Could not open location.");
+			cvarManager->log("Trying to close file connection.");
+			in.close();
+			cvarManager->log(in.is_open() ? "open" : "closed");
+			return;
+		}
 	}
 
 
@@ -213,21 +246,20 @@ void JSutsTeamTraining::loadPack(std::vector<std::string> args)
 		currentPack.packName = args[1];
 		cvarManager->log("num of drills: " + std::to_string(currentPack.drills.size()));
 		currentDrill = currentPack.drills.at(0);
+		loadDrill();
 	}
 	
 	cvarManager->log("Trying to close");
 	in.close();
 	cvarManager->log(in.is_open() ? "open" : "closed");
-
-	loadDrill();
 }
 
 // TODO: Add savePackAs or some pack name change option
 void JSutsTeamTraining::savePack() {
-	std::filesystem::path path = gameWrapper->GetDataFolder() / currentPack.packName;
+	std::filesystem::path path = folderPath / currentPack.packName;
 	cvarManager->log("Saving " + path.string());
 	// std::ofstream out(gameWrapper->GetDataFolder() / (currentPack.packName + ".txt"), std::ios::binary | std::ios::out | std::ios::trunc);
-	std::ofstream out(gameWrapper->GetDataFolder() / currentPack.packName, std::ios::binary | std::ios::out | std::ios::trunc);
+	std::ofstream out(path, std::ios::binary | std::ios::out | std::ios::trunc);
 
 	currentPack.write(out);
 	cvarManager->log("Trying to close");
