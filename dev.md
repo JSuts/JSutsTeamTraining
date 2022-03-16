@@ -1,5 +1,5 @@
 ## Ideas:
-- [ ] step through history to refine the start and endpoints ([remove from front of  (and end of) vector](https://stackoverflow.com/questions/7351899/remove-first-n-elements-from-a-stdvector)) 
+- [ ] step through history to refine the start and endpoints ([remove from front of (and end of) vector](https://stackoverflow.com/questions/7351899/remove-first-n-elements-from-a-stdvector)) 
  - [ ] Identify positions to be human, bot, or disabled entirely
 	 - [ ]  Can probably start by loading a drill, pausing (or constantly setting current position), listing identifiers along with player names and using a couple t/f checkboxes to determine
  - [ ] IMGUI representation
@@ -19,3 +19,7 @@
  - [ ] Change pack name
 	 - [ ] Error check file name (no spaces? not too long?) (or just remove spaces, lowerCamelCase, and truncate)
  - [ ] swap in folderPath to saving/loading files
+ - [x] Factor in FPS to recording and playback
+
+ ## Maybe:
+ - [ ] Save all recording settings for each drill to load back up when reading drill

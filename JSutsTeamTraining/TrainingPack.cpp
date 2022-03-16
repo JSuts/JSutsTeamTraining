@@ -331,13 +331,17 @@ const std::string GameState::toString() const {
 DrillData::DrillData() {
 	// history.emplace_back(GameState());
 	history;
+	fps = 100;
 }
 
 DrillData::DrillData(ServerWrapper sw) {
 	history.emplace_back(GameState(sw));
+	fps = 100;
 }
 
 DrillData::DrillData(std::istream& in) {
+	readPOD(in, fps);
+
 	int32_t size;
 	readPOD(in, size);
 
@@ -351,6 +355,8 @@ DrillData::DrillData(const std::string enc) {
 	std::string dec = base64dec(enc);
 	std::istringstream stream(dec);
 
+	readPOD(stream, fps);
+
 	int32_t size;
 	readPOD(stream, size);
 
@@ -361,6 +367,7 @@ DrillData::DrillData(const std::string enc) {
 }
 
 void DrillData::write(std::ostream& out) const {
+	writePOD(out, fps);
 	auto size = int32_t(history.size());
 
 	writePOD(out, size);

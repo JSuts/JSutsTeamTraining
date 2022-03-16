@@ -14,11 +14,17 @@ int captureTime = 3; // length of capture (s)
 int maxCapture = 300; // length of captures (GameStates)
 int maxReps = 40;
 bool mirrorHalfway = true;
+bool manualCaptureSettings = false;
+bool overridePlaybackSettings = false;
 
 void JSutsTeamTraining::onLoad()
 {
 	_globalCvarManager = cvarManager;
 
+	// This should somehow take into account previous settings. Also, do the addOnValueChanged functions below need to change as well?
+	int fps = gameWrapper->GetSettings().GetVideoSettings().MaxFPS;
+	maxCapture = captureTime * fps;
+	snapshotInterval = (float) captureTime / (float) maxCapture;
 	folderPath = gameWrapper->GetDataFolder() / "JSutsTeamTraining";
 
 	cvarManager->registerCvar("js_training_var_max_reps", std::to_string(maxReps), "How many times to repeat a drill", true, true, 1, false)
@@ -41,9 +47,18 @@ void JSutsTeamTraining::onLoad()
 		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
 			mirrorHalfway = cvar.getBoolValue();
 		});
-
-	// TODO: pass mirror through apply functions
-		
+	cvarManager->registerCvar("js_training_var_manual_capture_settings", std::to_string(manualCaptureSettings), "Enable this to use your own capture parameters", true, true, 0, true, 1)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			manualCaptureSettings = cvar.getBoolValue();
+		});
+	cvarManager->registerCvar("js_training_var_manual_capture_settings", std::to_string(manualCaptureSettings), "Enable this to use your own capture parameters", true, true, 0, true, 1)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+			manualCaptureSettings = cvar.getBoolValue();
+		});
+	cvarManager->registerCvar("js_training_var_override_playback_settings", std::to_string(overridePlaybackSettings), "Enable this to run drills at any parameters", true, true, 0, true, 1)
+		.addOnValueChanged([this](std::string oldValue, CVarWrapper cvar) {
+		overridePlaybackSettings = cvar.getBoolValue();
+		});		
 
 	cvarManager->registerNotifier("js_training_pack", std::bind(&JSutsTeamTraining::loadPack, this, std::placeholders::_1), "Load training pack", PERMISSION_ONLINE);
 	cvarManager->registerNotifier("js_training_load_drill", std::bind(&JSutsTeamTraining::loadDrill, this), "Load drill saved in memory", PERMISSION_ONLINE);
@@ -107,6 +122,21 @@ void JSutsTeamTraining::createDrillFromCurrentReplayPosition()
 	cvarManager->log("unpause to capture upcoming moments");
 	record = true;
 	currentDrill = DrillData(); // or DrilData(replay);
+
+	// TODO: check if uncapped frames and set to 100 if true, otherwise set to MaxFPS
+	int fps = gameWrapper->GetSettings().GetVideoSettings().MaxFPS;
+	if (fps > 360)
+		fps = 100;
+
+	currentDrill.fps = fps;
+
+	if (!manualCaptureSettings) {
+		maxCapture = captureTime * fps;
+		snapshotInterval = (float)captureTime / (float)maxCapture;
+
+		cvarManager->log("maxCapture = " + std::to_string(maxCapture));
+		cvarManager->log("snapshotInterval = " + std::to_string(snapshotInterval));
+	}
 	gameWrapper->HookEvent("Function TAGame.Replay_TA.Tick", std::bind(&JSutsTeamTraining::createDrillHook, this, std::placeholders::_1));
 }
 
@@ -132,6 +162,19 @@ void JSutsTeamTraining::loadDrill()
 		ball = server.SpawnBall(currentDrill.history.at(0).ball.location, 0, 0);
 	}
 
+	if (!overridePlaybackSettings) {
+		int fps = gameWrapper->GetSettings().GetVideoSettings().MaxFPS;
+		if (fps != currentDrill.fps) {
+			cvarManager->log("This drill was recorded at " + std::to_string(currentDrill.fps) + " fps. Please set your fps to match.");
+			return;
+		}
+		
+		maxCapture = captureTime * fps;
+		snapshotInterval = (float)captureTime / (float)maxCapture; // maybe could replace maxCapture with just the calculation, as maxCapture isn't used in the drill setup hook
+
+		cvarManager->log("maxCapture = " + std::to_string(maxCapture));
+		cvarManager->log("snapshotInterval = " + std::to_string(snapshotInterval));
+	}
 	server.ResetPickups();
 	training = true;
 
@@ -254,14 +297,16 @@ void JSutsTeamTraining::setupDrillHook(std::string eventname) {
 
 	float currentTime = server.GetSecondsElapsed();
 	float elapsed = currentTime - lastApplyTime;
-	elapsed = std::min(elapsed, 0.03f);
+	// elapsed = std::min(elapsed, 0.03f); // uncertain if this is necessary
+
+	cvarManager->log("elapsed: " + std::to_string(elapsed));
 
 	if (elapsed < 0) { // uncertain when this is the case
 		lastApplyTime = currentTime;
 		return;
 	}
-	if (elapsed < (snapshotInterval - (snapshotInterval/3))) {  // last capture was too recent
-		cvarManager->log("too soon " + std::to_string(elapsed));
+	if (elapsed < (snapshotInterval - (snapshotInterval * .01))) {  // last capture was too recent
+		cvarManager->log("too soon " + std::to_string(position));
 		return;
 	}
 		
@@ -306,7 +351,7 @@ void JSutsTeamTraining::createDrillHook(std::string eventname) {
 	if (elapsed < 0) { // uncertain when this is the case
 		elapsed = snapshotInterval;
 	}
-	if (elapsed < snapshotInterval) {  // last capture was too recent
+	if (elapsed < (snapshotInterval - (snapshotInterval * .01))) {  // last capture was too recent
 		cvarManager->log("too soon");
 		return;
 	}

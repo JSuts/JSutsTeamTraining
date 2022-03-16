@@ -58,6 +58,7 @@ public:
 class DrillData {
 public:	
 	std::vector<GameState> history;
+	int32_t fps;
 
 	DrillData();
 	DrillData(ServerWrapper sw);
